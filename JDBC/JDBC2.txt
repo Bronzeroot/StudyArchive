@@ -1,0 +1,349 @@
++ Database를 위해 필요한 것 2가지
+ - JDBC 기술 Driver
+ - SQL  표준 명령어
+
+
+
++ MySQL: 127.0.0.1:3306: studydb: study 사용자로 로그인 한다.
+create table MEMBERS (
+	MNO     INTEGER NOT NULL  COMMENT '회원일련번호',
+	EMAIL	VARCHAR(40) NOT NULL COMMENT '이메일',
+	PWD     VARCHAR(100) NOT NULL COMMENT '암호',
+	MNAME   VARCHAR(50) NOT NULL COMMENT '이름',
+	CRE_DATE DATETIME NOT NULL COMMENT '가입일',
+	MOD_DATE DATETIME NOT NULL COMMENT '마지막암호변경일'
+)
+comment '회원기본정보';
+ALTER TABLE MEMBERS
+ADD CONSTRAINT PK_MEMBERS -- 회원기본정보  기본키
+PRIMARY KEY( MNO );       -- 회원일련번호 == 값 수정 불가하다.
+CREATE UNIQUE INDEX UIX_MEMBERS
+ON MEMBERS( EMAIL ASC );  -- EMAIL == 중복된값 불가하다. 유일한값.
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) 
+           VALUES('s1@test.com', '1111', '홍길동', NOW(), NOW());
+ALTER TABLE MEMBERS MODIFY COLUMN MNO INTEGER NOT NULL AUTO_INCREMENT COMMENT '회원일련번호';
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) VALUES('s1@test.com', '1111', '홍길동', NOW(), NOW());
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) VALUES('s2@test.com', '1111', '임꺽정', NOW(), NOW());
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) VALUES('s3@test.com', '1111', '일지매', NOW(), NOW());
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) VALUES('s4@test.com', '1111', '이몽룡', NOW(), NOW());
+INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE) VALUES('s5@test.com', '1111', '성춘향', NOW(), NOW());
+SELECT * FROM MEMBERS;
+
+
++ No suitable driver found for jdbc 문제해결
+ - HTTP Status 500 - java.sql.SQLException: No suitable driver found for jdbc:mysql//localhost/studydb
+ - WEB-INF/lib/mysql-connector-java-5.1.26.jar를 물고 올라오지 못하는 것임.
+ - Java Resources/src/*mysql* 폴더를 제거한다.
+ - WEB-INF/web.xml 과 WEB-INF/lib/mysql-connector-java-5.1.26.jar 파일을 확인하라.
+
++ JDBC Driver
+ - Type 1 - Type 2 - Type 3
+ - Type 4: MySQL에서 제공 == 실무에서도 MySQL에서 제공하는 Type 4를 사용한다.
+	= https://mvnrepository.com/ 
+        => Search: mysql-connector-java-5.1.26.jar
+	= mysql-connector-java-5.1.26.jar 다운로드
+ - Project Explorer_New_Project_web04를 생성하고,
+ - 내컴퓨터에서 mysql-connector-java-5.1.26.jar 끌어다가 
+   web04_WebContent_WEB-INF/lib 폴더에 넣어줍니다.
+ - Tomcat  다시 Restart
+
++ MemberListServlet
+ - web04 프로젝트 생성하시오.
+ - spms.servlets 패키지 생성하시오.
+ - MemberListServlet 클래스 생성하시오.
+
+# vi MemberListServlet.java
+package spms.servlets;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.servlet.GenericServlet;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.annotation.WebServlet;
+
+@WebServlet("/member/list")
+public class MemberListServlet extends GenericServlet {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public void service(ServletRequest request, ServletResponse response)
+			throws ServletException, IOException {
+		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
+
+		try {
+			DriverManager.registerDriver(new com.mysql.jdbc.Driver());
+			conn = DriverManager.getConnection(
+					"jdbc:mysql://localhost/studydb", //JDBC URL
+					"study",	// DBMS 사용자 아이디
+					"study");	// DBMS 사용자 암호
+			stmt = conn.createStatement();
+			rs = stmt.executeQuery(
+					"SELECT MNO,MNAME,EMAIL,CRE_DATE" + 
+					" FROM MEMBERS" +
+					" ORDER BY MNO ASC");
+			
+			response.setContentType("text/html; charset=UTF-8");
+			PrintWriter out = response.getWriter();
+			out.println("<html><head><title>회원목록</title></head>");
+			out.println("<body><h1>회원목록</h1>");
+			while(rs.next()) {
+				out.println(
+					rs.getInt("MNO") + "," +
+					rs.getString("MNAME") + "," +
+					rs.getString("EMAIL") + "," + 
+					rs.getDate("CRE_DATE") + "<br>"
+				);
+			}
+			out.println("</body></html>");
+		} catch (Exception e) {
+			throw new ServletException(e);
+			
+		} finally {
+			try {if (rs != null)   rs.close();  } catch(Exception e) {}
+			try {if (stmt != null) stmt.close();} catch(Exception e) {}
+			try {if (conn != null) conn.close();} catch(Exception e) {}
+		}
+	}
+}
+
++ MemberListServlet 분석
+ - extends GenericServlet
+   = 서블릿을 만들려면?
+   = javax.servlet.GenericServlet 클래스를 상속받고, service() 메서드를 구현합니다.
+ - @Override
+   public void service(ServletRequest request, ServletResponse response)
+			                       throws ServletException, IOException {
+		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
+   = JDBC Object의 Address를 저장시킬 참조변수의 선언.
+ - try {
+   } catch (Exception e) {
+     throw new ServletException(e);
+   } finally {
+     try {if (rs != null) rs.close();} catch(Exception e) {}
+     try {if (stmt != null) stmt.close();} catch(Exception e) {}
+     try {if (conn != null) conn.close();} catch(Exception e) {}
+   }
+   = JDBC API를 사용할 때, 예외가 발생할 수 있으므로 예외처리!
+ - DriverManager.registerDriver(  new com.mysql.jdbc.Driver()  );
+   conn = DriverManager.getConnection("jdbc:mysql://localhost/studydb", "study", "study");
+   stmt = conn.createStatement();
+   rs = stmt.executeQuery( "SELECT MNO,MNAME,EMAIL,CRE_DATE" + " FROM MEMBERS" + " ORDER BY MNO ASC");
+   = Step1. DriverManager.registerDriver() 를 호출하여, java.sql.Driver 인터페이스를 구현한 Class(구현체)를 등록한다.
+   	    => com.mysql.jdbc.Driver 클래스는? mysql-connector-java-5.1.26.jar 안에 들어 있습니다.
+	    => java.sql.Driver 인터페이스와 같은 이름인 Driver.class 파일명으로 되어 있다.
+	    => java.sql.Driver 인터페이스 == getMajorVersion(), getMinorVersion(), acceptsURL(), connect()로 구성되어있다
+   = Step2. DriverManager.getConnection() 을 호출하여, MySQL 서버에 연결호청 합니다.
+	    => jdbc:mysql:thin:@localhost:3306:studydb	=> jdbc URL 정보 == Driver에 따라 다르다.
+	    => 드라이버명 타입            포트:DB이름
+	    => jdbc:mysql == JDBC 드라이버의 이름
+	    => //localhost/studydb ==  접속할 주소와 DB 이름입니다.
+	    => 접속에 성공하면? java.sql.Connection 인터페이스의 구현체를 리턴한다.
+	    => 이때 리턴된 객체를 통해서 다시금 SQL문을 보내는 Object를 얻을 수 있습니다.
+ - java.sql.Connection 인터페이스 구현체
+	    => createStatement() 
+	    => prepareStatement()
+	    => prepareCall()
+	    => commit()
+	    => rollback()
+ - java.sql.Statement 인터페이스의 구현체
+	    => executeQuery()	: select 문을 실행시킬 때 사용
+	    => executeUpdate()	: DML, DDL 명령문을 실행시킬 때 사용
+	    => ececute()	: select, DML, DDL 명령문 모두에 사용가능
+	    => executeBatch()	: addBatch()로 등록시킨 여러개의 SQL을 한꺼번에 Batch 실행할 때 사용
+ - java.sql.ResultSet 인터페이스의 구현체
+	    => first()		: 첫번째 Record를 가져 옵니다.
+	    => last()		: 마지막
+	    => previous()	: 이전   
+	    => next()		: 다음
+	    => getXXX()		: 특정 Column 값을 꺼냅니다. XXX==Type
+	    => updateXXX()	: 특정 Column 값을 바꿉니다.
+	    => deleteRow()	: 현재 Record   를 삭제한다.
+ - 출력시킬 HTML 페이지를 준비한다.
+	=> response.setContentType("text/html; charset=UTF-8")
+	=> PrintWriter out = response.getWriter()
+	=> out.println("<html>");
+	=> out.println("<head><title></title></head>");
+	=> out.println("<body>");
+	=> 여기에 SELECT 결과들을 출력한다.
+	=> out.println("</body>");
+	=> out.println("</html>");
+ - SELECT 결과 출력
+	while(rs.next()) {					// get Record as 1 by 1
+		out.println(
+			rs.getInt("MNO") + "," +		// == rs.getInt   (1)
+			rs.getString("MNAME") + "," +		// == rs.getString(2)
+			rs.getString("EMAIL") + "," + 		// == rs.getString(3)
+			rs.getDate("CRE_DATE") + "<br>"		// == rs.getDate  (4)
+		);
+	}
+ - 주의! 반드시 자원해제 in finally { }
+	} finally {
+		try {if (rs != null)   rs.close();  } catch(Exception e) {}
+		try {if (stmt != null) stmt.close();} catch(Exception e) {}
+		try {if (conn != null) conn.close();} catch(Exception e) {}
+	}
+ - @WebServlet() 어노테이션 또는 web.xml(배치 정보 작성)
+   = @WebServlet("/member/list")
+   = http://localhost/web04/member/list => OK
+
++ HttpServlet 클래스 상속받고, doGet() 메서드 정의하기
+ - # vi MemberList.java 파일에 <신규 회원> 링크를 추가합니다.
+	out.println("<body><h1>회원목록</h1>");
+	out.println("<p><a href='add'>신규 회원</a></p>");	// Get Request
+	while(rs.next()) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ - # vi MemberAddServlet.java		// MemberAddServlet 클래스를 /member/add로 등록할 것입니다.
+package spms.servlets;
+import java.io.IOException;
+import java.io.PrintWriter;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+@WebServlet("/member/add")
+public class MemberAddServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+	@Override
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+					        throws ServletException, IOException {
+		response.setContentType("text/html; charset=UTF-8");
+		PrintWriter out = response.getWriter();
+		out.println("<html><head><title>회원 등록</title></head>");
+		out.println("<body>         <h1>회원 등록</h1>");
+		out.println("<form action='add' method='post'>");	// 주의! POST
+		out.println("이름:   <input type='text'     name='name'><br>");
+		out.println("이메일: <input type='text'     name='email'><br>");
+		out.println("암호:   <input type='password' name='password'><br>");
+		out.println("<input type='submit' value='추가'>");
+		out.println("<input type='reset' value='취소'>");
+		out.println("</form>");
+		out.println("</body></html>");
+	}
+}
+ - 내컴퓨터의 MemberAddServlet.java 파일을 Eclipse:Project Explorer:spms.servlets에 Drag&Drop 시키면?
+ - 복사되는 그 순간 tmp0/wtpwebapps/web04/WEB-INF/classes/spms/servlets 폴더에 *.class 파일이 생성된다.
+ - @WebServlet("/member/add") 배치 정보를 Tomcat v7.0 Server가 다시 읽어야 한다. From *.class로 부터!
+ - Tomcat v7.0 Server ==> Restart
+ - http://localhost:9999/web04/member/add ==> 입력하기 전까지는 OK
+
++ Servlet <---- GenericServlet 클래스 <---- HttpServlet 클래스
+ - GenericServlet로 부터 extends 받던
+ - HttpServlet 으로 부터 extends 받던
+ - 당신의 Class는 (Servlet 인터페이스를 구현한) Servlet 구현체 Class를 상속받은 것입니다.
+ - 당신의 Class는 javax.servlet.Servlet 인터페이스를 implements 한 것이나 다름이 없습니다.
+ - HttpServlet 으로 부터 extends 받았다면? 당신은 그 안에 정의된 doGet()을 Override 할 수 있습니다.
+ - HttpServlet 의 service()는 Client의 Request 방식에 따라 doGet(), doPost(), or doPut()을 호출합니다.
+ - HttpServlet 으로 부터 extends 받았다면? 당신은 doGet() 또는 doPost()를 Override 해야만 합니다.
+
++ HttpServlet 클래스 상속받고, doPost() 메서드 정의하기
+ - # vi MemberAddServlet.java		// 주의! POST 이므로, doPost() 메서드도 Override 해야만 한다.
+package spms.servlets;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+@WebServlet("/member/add")
+public class MemberAddServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+	@Override
+	protected void doGet(
+			HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+		response.setContentType("text/html; charset=UTF-8");
+		PrintWriter out = response.getWriter();
+		out.println("<html><head><title>회원 등록</title></head>");
+		out.println("<body><h1>회원 등록</h1>");
+		out.println("<form action='add' method='post'>");
+		out.println("이름: <input type='text' name='name'><br>");
+		out.println("이메일: <input type='text' name='email'><br>");
+		out.println("암호: <input type='password' name='password'><br>");
+		out.println("<input type='submit' value='추가'>");
+		out.println("<input type='reset' value='취소'>");
+		out.println("</form>");
+		out.println("</body></html>");
+	}	
+	@Override
+	protected void doPost(
+			HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		try {
+			DriverManager.registerDriver(new com.mysql.jdbc.Driver());
+			conn = DriverManager.getConnection(
+					"jdbc:mysql://localhost/studydb", //JDBC URL
+					"study",	// DBMS 사용자 아이디
+					"study");	// DBMS 사용자 암호
+			stmt = conn.prepareStatement(
+					"INSERT INTO MEMBERS(EMAIL,PWD,MNAME,CRE_DATE,MOD_DATE)"
+					+ " VALUES (?,?,?,NOW(),NOW())");
+			stmt.setString(1, request.getParameter("email"));
+			stmt.setString(2, request.getParameter("password"));
+			stmt.setString(3, request.getParameter("name"));
+			stmt.executeUpdate();			
+			response.setContentType("text/html; charset=UTF-8");
+			PrintWriter out = response.getWriter();
+			out.println("<html><head><title>회원등록결과</title></head>");
+			out.println("<body>");
+			out.println("<p>등록 성공입니다!</p>");
+			out.println("</body></html>");	
+		} catch (Exception e) {
+			throw new ServletException(e);	
+		} finally {
+			try {if (stmt != null) stmt.close();} catch(Exception e) {}
+			try {if (conn != null) conn.close();} catch(Exception e) {}
+		}
+	}
+}
+ - http://localhost:9999/web04/member/add     ==> 회원 정보 입력후 추가 OK
+ - MySQL Workbench에서 SELECT * FROM MEMBERS; ==> OK
+ - http://localhost:9999/web04/member/list    ==> OK
+ - MySQL Workbench에서 마지막것 제거하고 다시 추가해 봅니다.
+ - 일련번호 값은 Record가 삭제되어 번호가 비더라도 빈 숫자를 채우지 않습니다.
+
++ MemberAddServlet.java 파일에 추가된 doPost() 분석
+ - 이번에는 insert 문이므로 ResultSet 참조변수는 선언하지 않았습니다.
+ - 참조변수 중 Statement 대신 java.sql 패키지 소속의 PreparedStatement를 사용했습니다.
+ - PreparedStatement 참조변수는 반복적인 질의, 입력 Parameter가 많은 경우에 유용합니다.
+ - 이미지같은 Binary Data를 저장하거나 변경할때는 PrepareStatement만 가능합니다.
+ - throw new ServletException(e);	// 예외 발생하면? 상위 == Servlet Container에게도 던집니다.	
+ - VALUES (?,?,?,NOW(),NOW())");	// ?,?,? == PreparedStatement 참조변수의 특징(장점)
+ - VALUES (?,?,?,NOW(),NOW())");	// ?,?,? == 아래의 stmt.setString() 메서드로 채웁니다.
+	= stmt.setString(1, request.getParameter("email"));	// setInt(), setDate() 도 있습니다.
+	= stmt.setString(2, request.getParameter("password"));	// setInt(), setDate() 도 있습니다.
+	= stmt.setString(3, request.getParameter("name"));	// setInt(), setDate() 도 있습니다.
+	= stmt.executeUpdate();		// 주의! stmt.executeUpdate(); 하기 전에 채워 넣어야 합니다.
+ - stmt.executeQuery();		for SELECT
+ - stmt.executeUpdate();	for INSERT(DDL and DML) 
