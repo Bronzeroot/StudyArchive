@@ -1,0 +1,115 @@
++ Hadoop Node1 - Exec
+1-1) SSH 키쌍 생성 및 배포
+[hadoop@node1 ~]$ cd			# 홈디렉토리에서의 작업임을 확실히 하기 위해 
+[hadoop@node1 ~]$ ssh-keygen -t rsa	# 공개키 생성
+
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/hadoop/.ssh/id_rsa): (ENTER)	<=====
+Created directory '/home/hadoop/.ssh'.
+Enter passphrase (empty for no passphrase): (ENTER)			<=====
+Enter same passphrase again: (ENTER)					<=====
+Your identification has been saved in /home/hadoop/.ssh/id_rsa.
+Your public key has been saved in /home/hadoop/.ssh/id_rsa.pub.
+The key fingerprint is:
+9f:bc:c8:07:6a:92:8c:c0:9f:d8:07:87:fb:11:c2:83 hadoop@node1.myhadoop.com
+
+[hadoop@node1 ~]$ ls -l ~/.ssh		# 생성된 키 확인
+total 8
+-rw------- 1 hadoop hadoop 1675 Mar 19 16:24 id_rsa		<== 개인키
+-rw-r--r-- 1 hadoop hadoop  407 Mar 19 16:24 id_rsa.pub		<== 공개키
+
+[hadoop@node1 ~]$ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys	<== 공개키 복사
+
+ 
+[hadoop@node1 ~]$ ssh-agent $SHELL
+[hadoop@node1 ~]$ ssh-add
+Identity added: /home/hadoop/.ssh/id_rsa (/home/hadoop/.ssh/id_rsa)
+[hadoop@node1 ~]$ ssh-add -L
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAwSAhUrhOIuFAERhXsrj9wHukqMRtGn4qiZ+pRoVU57jJY7fireo/jObCUCbrjyQZwqn3Y3EmdxZyn3CEVNGFg/L1V1XOpYbd97pfGrE/xW3dT/Pq8/pT4uv7g/kjFLPML2THYzXjKNGTvcxHOQx0DgBt1VUcQh8Zt1uN8S56hjpA0Pie/tbvimei+jb/6AZiBULPHt71xat2Vgr1t3qAyqVTykm0NfnvL8WuZxgIGg1pzSv1GWZ8B7U+1cHErfTN0VKRlq8M+Cnf1rvO3PYijmVUb5kUqo6cE0R1SJzZHyhTU7g2kY9c8Ow4X1egzNtwxuEb310UZJtbRpZc7WI3qw== /home/hadoop/.ssh/id_rsa
+[hadoop@node1 ~]$ ssh-copy-id node2
+
+[hadoop@node1 ~]$ ssh-agent $SHELL
+[hadoop@node1 ~]$ ssh-add
+Identity added: /home/hadoop/.ssh/id_rsa (/home/hadoop/.ssh/id_rsa)
+[hadoop@node1 ~]$ ssh-add -L
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAwSAhUrhOIuFAERhXsrj9wHukqMRtGn4qiZ+pRoVU57jJY7fireo/jObCUCbrjyQZwqn3Y3EmdxZyn3CEVNGFg/L1V1XOpYbd97pfGrE/xW3dT/Pq8/pT4uv7g/kjFLPML2THYzXjKNGTvcxHOQx0DgBt1VUcQh8Zt1uN8S56hjpA0Pie/tbvimei+jb/6AZiBULPHt71xat2Vgr1t3qAyqVTykm0NfnvL8WuZxgIGg1pzSv1GWZ8B7U+1cHErfTN0VKRlq8M+Cnf1rvO3PYijmVUb5kUqo6cE0R1SJzZHyhTU7g2kY9c8Ow4X1egzNtwxuEb310UZJtbRpZc7WI3qw== /home/hadoop/.ssh/id_rsa
+[hadoop@node1 ~]$ ssh-copy-id node3
+
+>> 하둡 설정파일 수정
+AT node1
+[hadoop@node1 ~]$ cd $HADOOP_INSTALL/conf
+[hadoop@node1 conf]$ vi hadoop-env.sh
+export JAVA_HOME=/usr/local/java
+
+
+2-2) masters 파일 수정
+[hadoop@node1 conf]$ vi masters
+(아래의 두 줄만 남도록 수정)
+namenode
+snamenode
+
+
+2-3) slaves 파일 수정
+[hadoop@node1 conf]$ vi slaves
+node1
+node2
+node3
+
+2-4) core-site.xml 수정
+[hadoop@node1 conf]$ vi core-site.xml
+<configuration>
+    <property>
+        <name>fs.default.name</name>
+        <value>hdfs://namenode:9000</value>
+    </property>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/opt/hadoop/hadoop-tmp-dir/</value>
+    </property>
+</configuration>
+
+
+2-5) hdfs-site.xml 수정
+
+[hadoop@node1 conf]$ vi hdfs-site.xml
+
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>3</value>
+    </property>
+    <property>
+        <name>dfs.http.address</name>
+        <value>namenode:50070</value>
+    </property>
+    <property>
+        <name>dfs.secondary.http.address</name>
+        <value>snamenode:50090</value>
+    </property>
+    <property>
+        <name>dfs.name.dir</name>
+        <value>/opt/hadoop/hadoop-tmp-dir/dfs/name</value>
+    </property>
+    <property>
+        <name>dfs.name.edits.dir</name>
+        <value>${dfs.name.dir}</value>
+    </property>
+    <property>
+        <name>dfs.data.dir</name>
+        <value>/opt/hadoop/hadoop-tmp-dir/dfs/data</value>
+    </property>
+</configuration>
+
+
+2-6) mapred-site.xml 수정
+
+[hadoop@node1 conf]$ vi mapred-site.xml
+
+<configuration>
+    <property>
+        <name>mapred.job.tracker</name>
+        <value>namenode:9001</value>
+    </property>
+</configuration>
+
+

@@ -1,0 +1,95 @@
+++++++++++++++++++++++
+hive> CREATE TABLE airline(
+    >     Year INT, Month INT, DayOfMonth INT, DayOfWeek INT
+    >   , DepTime INT, CRSDepTime INT, ArrTime INT, CRSArrTime INT
+    >   , UniqueCarrier STRING, FlightNum INT, TailNum STRING
+    >   , ActualElapsedTime INT, CRSElapsedTime INT, AirTime INT
+    >   , ArrDelay INT, DepDelay INT, Origin STRING, Dest STRING
+    >   , Distance INT, TaxiIn INT, TaxiOut INT, Cancelled INT
+    >   , CancellationCode STRING COMMENT 'A = carrier, B = weather, C = NAS, D = security'
+    >   , Diverted INT COMMENT '1 = yes, 0 = no'
+    >   , CarrierDelay STRING, WeatherDelay STRING, NASDelay STRING
+    >   , SecurityDelay STRING, LateAircraftDelay STRING)
+    >   COMMENT 'The data consists of flight arrival and departure details for all commercial flights within the USA, from January 2006 to October 2008'
+    >   PARTITIONED BY (delayYear INT)
+    >   ROW FORMAT DELIMITED
+    >     FIELDS TERMINATED BY ','
+    >     LINES TERMINATED BY '\n'
+    >     STORED AS TEXTFILE;
+OK
+Time taken: 8.441 seconds
+hive> 
+
+  -- Verify the table AIRLINE
+
+hive> SHOW TABLES;
+OK
+airline
+Time taken: 0.26 seconds
+hive> 
+
+
+  -- Verify the table, AIRLINE, in HDFS
+  -- Open another terminal and login as hadoop user
+bash-3.2$ su - hadoop
+Password: 
+[hadoop@EDYDR15P0 ~]$ hadoop fs -ls /user/hive/warehouse
+Found 1 items
+drwxr-xr-x   - hadoop supergroup          0 2013-09-12 11:54 /user/hive/warehouse/airline
+[hadoop@EDYDR15P0 ~]$ hadoop fs -ls /user/hive/warehouse/airline
+(EMPTY)
+
+  --> check that there is no file in /user/hive/warehouse/airline
+
+
+  -- Verify the structure of AIRLINE table
+hive> DESCRIBE airline;
+OK
+year    int
+month   int
+dayofmonth      int
+dayofweek       int
+deptime int
+crsdeptime      int
+arrtime int
+crsarrtime      int
+uniquecarrier   string
+flightnum       int
+tailnum string
+actualelapsedtime       int
+crselapsedtime  int
+airtime int
+arrdelay        int
+depdelay        int
+origin  string
+dest    string
+distance        int
+taxiin  int
+taxiout int
+cancelled       int
+cancellationcode        string  A = carrier, B = weather, C = NAS, D = security
+diverted        int     1 = yes, 0 = no
+carrierdelay    string
+weatherdelay    string
+nasdelay        string
+securitydelay   string
+lateaircraftdelay       string
+delayyear       int
+Time taken: 0.257 seconds
+hive> 
+
+hive> LOAD DATA LOCAL INPATH '/home/hadoop/2008_new.csv'
+    > OVERWRITE INTO TABLE airline
+    > PARTITION (delayYear='2008');
+Copying data from file:/home/hadoop/download/2008_new.csv
+Copying file: file:/home/hadoop/download/2008_new.csv
+Loading data to table default.airline partition (delayyear=2008)
+Partition default.airline{delayyear=2008} stats: [num_files: 1, num_rows: 0, total_size: 583235250, raw_data_size: 0]
+Table default.airline stats: [num_partitions: 1, num_files: 1, num_rows: 0, total_size: 583235250, raw_data_size: 0]
+OK
+Time taken: 33.897 seconds
+
+hive> SELECT year, month, deptime, arrtime, uniquecarrier, flightnum
+    > FROM airline
+    > WHERE delayyear = '2008'
+    > LIMIT 10;

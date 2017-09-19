@@ -1,0 +1,125 @@
+
++ Hadoop Cluster Init
+0. namenode를 포맷($ hdfs namenode -format)하거나, datanode를 제거하더라도 데이터 블록은 존재합니다. 
+1. 클러스터 시작 ($ start-all.sh 또는 start-dfs.sh) AND 모든 node에서 모든 data를 직접 삭제 ($ hdfs dfs -rm -R /폴더이름 )
+2. 클러스터 종료 ($  stop-all.sh 또는 stop-dfs.sh )
+3. dfs/name 디렉토리, dfs/namesecondary 디렉토리, dfs/data, /opt/hadoop/.../logs 디렉토리 내의 모든 파일 삭제
+4. HDFS에 User 홈 디렉토리 생성, (리눅스 사용자가 hadoop일 경우) hdfs dfs -mkdir -p /user/hadoop
+
++ bin/hadoop
+[hadoop@node1 bin]$ hadoop
+Usage: hadoop [--config confdir] COMMAND
+where COMMAND is one of:
+  namenode -format     format the DFS filesystem
+  secondarynamenode    run the DFS secondary namenode
+  namenode             run the DFS namenode
+  datanode             run a DFS datanode
+  dfsadmin             run a DFS admin client
+  mradmin              run a Map-Reduce admin client
+  fsck                 run a DFS filesystem checking utility
+  fs                   run a generic filesystem user client
+  balancer             run a cluster balancing utility
+  oiv                  apply the offline fsimage viewer to an fsimage
+  fetchdt              fetch a delegation token from the NameNode
+  jobtracker           run the MapReduce job Tracker node
+  pipes                run a Pipes job
+  tasktracker          run a MapReduce task Tracker node
+  historyserver        run job history servers as a standalone daemon
+  job                  manipulate MapReduce jobs
+  queue                get information regarding JobQueues
+  version              print the version
+  jar <jar>            run a jar file
+  distcp <srcurl> <desturl> copy file or directories recursively
+  distcp2 <srcurl> <desturl> DistCp version 2
+  archive -archiveName NAME -p <parent path> <src>* <dest> create a hadoop archive
+  classpath            prints the class path needed to get the
+                       Hadoop jar and the required libraries
+  daemonlog            get/set the log level for each daemon
+  or
+  CLASSNAME            run the class named CLASSNAME
+  Most commands print help when invoked w/o parameters.
+
++ /bin/hadoop -fs
+ - node$ hadoop -fs cmd       <args> 
+ - 파일 목록 보기 : ls, lsr 
+ - 파일 용량 확인 : du, dus 
+ - 파일 내용 보기 : cat, text 
+ - 디렉토리 생성  : mkdir 
+ - 파일 복사      : put, get, getmerge, cp, copyFromLocal, copyToLocal 
+ - 파일 이동      : mv, moveFromLocal 
+ - 파일삭제       : rm, rmr
+ - 카운트 값 조회 : count 
+ - 파일의 끝 확인 : tail 
+ - 권한 변경      : chmod, chown, chgrp 
+ - 0 파일 생성    : touchz 
+ - 통계 정보 조회 : stat 
+ - 복제할 개수변경: setrep 
+ - 파일 형식 확인 : test
+ - 휴지통 비우기  : expunge 
+
+[hadoop@node1 bin]$ hdfs dfs -mkdir -p /user/hadoop
+[hadoop@node1 bin]$ hadoop fs -ls
+[hadoop@node1 bin]$ hadoop fs -df /
+df: Unknown command
+Usage: java FsShell
+           [-ls <path>]
+           [-lsr <path>]
+           [-du <path>]
+           [-dus <path>]
+           [-count[-q] <path>]
+           [-mv <src> <dst>]
+           [-cp <src> <dst>]
+           [-rm [-skipTrash] <path>]
+           [-rmr [-skipTrash] <path>]
+           [-expunge]
+           [-put <localsrc> ... <dst>]
+           [-copyFromLocal <localsrc> ... <dst>]
+           [-moveFromLocal <localsrc> ... <dst>]
+           [-get [-ignoreCrc] [-crc] <src> <localdst>]
+           [-getmerge <src> <localdst> [addnl]]
+           [-cat <src>]
+           [-text <src>]
+           [-copyToLocal [-ignoreCrc] [-crc] <src> <localdst>]
+           [-moveToLocal [-crc] <src> <localdst>]
+           [-mkdir <path>]
+           [-setrep [-R] [-w] <rep> <path/file>]
+           [-touchz <path>]
+           [-test -[ezd] <path>]
+           [-stat [format] <path>]
+           [-tail [-f] <file>]
+           [-chmod [-R] <MODE[,MODE]... | OCTALMODE> PATH...]
+           [-chown [-R] [OWNER][:[GROUP]] PATH...]
+           [-chgrp [-R] GROUP PATH...]
+           [-help [cmd]]
+
+[hadoop@node1 bin]$ hadoop fs -du
+[hadoop@node1 bin]$ hadoop fs -dus	-> hdfs://namenode:9000/user/hadoop        0
+[hadoop@node1 bin]$ hadoop fs -mkdir             /etc
+[hadoop@node1 bin]$ hadoop fs -put   /etc/passwd /etc
+[hadoop@node1 bin]$ hadoop fs -text              /etc/passwd
+[hadoop@node1 bin]$ hadoop fs -copyFromLocal /etc/hosts  /etc
+[hadoop@node1 bin]$ hadoop fs -ls  /etc
+[hadoop@node1 bin]$ hadoop fs -mkdir  /tmp
+[hadoop@node1 bin]$ date  >           /tmp/date.txt
+[hadoop@node1 bin]$ hadoop fs -moveFromLocal /tmp/date.txt  /
+[hadoop@node1 bin]$ hadoop fs -rm  /date.txt
+[hadoop@node1 bin]$ hadoop fs -rm  /etc
+[hadoop@node1 bin]$ hadoop fs -rmr /etc
+[hadoop@node1 bin]$ hadoop fs -copyFromLocal /tmp/hadoop*  /tmp
+[hadoop@node1 bin]$ hadoop fs -tail          /tmp/hadoop*
+[hadoop@node1 bin]$ hadoop fs -tail          /tmp/hadoop-hadoop-datanode.pid
+[hadoop@node1 bin]$ hadoop fs -tail          /tmp/hadoop-hadoop-namenode.pid
+[hadoop@node1 bin]$ hadoop fs -count  /
+[hadoop@node1 bin]$ hadoop fs -chown hadoop /tmp
+[hadoop@node1 bin]$ hadoop fs -chgrp hadoop /tmp
+[hadoop@node1 bin]$ hadoop fs -chmod 000    /tmp
+[hadoop@node1 bin]$ hadoop fs -ls     /
+[hadoop@node1 bin]$ hadoop fs -touchz    Zero.txt
+[hadoop@node1 bin]$ hadoop fs -stat      /user/hadoop/Zero.txt
+[hadoop@node1 bin]$ hadoop fs -stat "%b %F %n o %r %y" /user/hadoop/Zero.txt
+[hadoop@node1 bin]$ hadoop fs -setrep 2  /user/hadoop/Zero.txt
+[hadoop@node1 bin]$ hadoop fs -expunge
+[hadoop@node1 bin]$ hadoop fs -test -z  /user/hadoop/Zero.txt
+[hadoop@node1 bin]$ hadoop fs -help
+hadoop fs is the command to execute fs commands. The full syntax is: ...
+

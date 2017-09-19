@@ -1,0 +1,153 @@
++ Hadoop Node1 - Setup Chk
+
+#----------------------
+#  Hadoop Cluster 구성
+#----------------------
+
+# 첫번째 Hadoop Cluster Node 설치/설정
+
+  - 11gWS1.ova 이미지 파일을 활용
+
+  1. Oracle VM Virtual Box 에서 11gWS1.ova 를 가져오기
+  2. 설정 -> 일반 -> 이름 : Hadoop_Node1
+  3. 설정 -> 시스템 -> 메모리 크기를 640MB로 변경
+  4. 플로피 디스크, 오디오, USB 체크 해제
+
+  - 시작 (부팅) 후 root 유저로 로그인
+  - System -> Administration -> Network 에서
+      * 네크워크 설정: eth1의 주소를 192.168.56.31 로 설정
+  - System -> Administration -> Users and Groups 에서
+      * hadoop 유저 생성, 암호는 hadoop
+      * hadoop 유저를 vboxsf 그룹에 추가
+  - 로그 아웃
+
+  - 이제부터 Putty를 사용하여 Node에 접속할 것입니다.
+
+
+# PuTTY로 접속한 뒤
+
+  1. PuTTY 접속이 가능하다는 말은 open-ssh가 실행중이란 뜻
+
+  2. Java 설치: 이미 11gWS1.ova에는 JDK1.6.0 이 설치되어 있음
+     - JDK 1.7.0을 설치하려면 JDK 설치.txt 참고
+
+  3. Hadoop 설치
+
+    - 설치용 디렉토리 생성 (root 유저로 생성)
+
+[hadoop@edydr1p0 ~]$ su -
+Password:(oracle)
+
+[root@edydr1p0 ~]# mkdir /opt/hadoop
+[root@edydr1p0 ~]# chown hadoop:hadoop /opt/hadoop
+
+
+    - hadoop 설치 (hadoop 유저로)
+    - hadoop-1.2.1.tar.gz 파일을 공유 폴더에 넣어 두었습니다.
+[root@edydr1p0 ~]# su - hadoop
+
+[hadoop@edydr1p0 ~]$ cd /opt/hadoop
+[hadoop@edydr1p0 hadoop]$ tar xzf /media/sf_Share/hadoop-1.2.1.tar.gz
+
+    - 심볼릭 링크 생성
+[hadoop@edydr1p0 hadoop]$ ln -s /opt/hadoop/hadoop-1.2.1 hadoop
+[hadoop@edydr1p0 hadoop]$ ls -l
+total 4
+lrwxrwxrwx  1 hadoop hadoop   24 Mar 18 17:30 hadoop -> /opt/hadoop/hadoop-1.2.1
+drwxr-xr-x 15 hadoop hadoop 4096 Jul 23  2013 hadoop-1.2.1
+
+    - hadoop 환경 변수 설정
+[hadoop@edydr1p0 hadoop]$ vi ~/.bash_profile
+(아래 두 줄을 제일 아랫쪽에 추가하세요)
+
+export HADOOP_INSTALL=/opt/hadoop/hadoop
+export PATH=$PATH:$HADOOP_INSTALL/bin:$HADOOP_INSTALL/sbin
+
+    - 변경된 내용 적용 및 확인
+[hadoop@edydr1p0 hadoop]$ source ~/.bash_profile
+[hadoop@edydr1p0 hadoop]$ hadoop version
+
+    - 지금 설정한 노드 1을 복제하기 위해 종료
+[hadoop@edydr1p0 hadoop]$ su -
+Password:
+[root@edydr1p0 ~]# halt
+
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+# 가상머신 복제
+
+  - Oracle VM VirtualBox 에서 Node1 가상머신을 선택하고
+  - 머신 -> 복제 또는 Ctrl+O 를 입력하여 Node1 가상머신을 복제
+  -    복제될 가상머신은 총 2대: Hadoop_Node2, Hadoop_Node3 로 명명
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+At Node2
+# 서버용 가상머신 설정/재구성
+- PuTTY 로 Hadoop_Node2 머신에 원격 접속
+- 주소는 192.168.56.32
+[hadoop@edydr1p0 ~]$ su -
+Password:
+[root@edydr1p0 ~]#  hostname
+node2.myhadoop.com 
+
+[root@edydr1p0 ~]# vi /etc/sysconfig/network
+HOSTNAME=node2.myhadoop.com
+
+[root@edydr1p0 ~]# vi /etc/hosts
+노드1의 /etc/hosts 파일을 보고 카피한다.
+이때 2번째 줄의 IP 주소는 31 -> 32로 바꾼다.
+
+# Do not remove the following line, or various programs
+# that require network functionality will fail.
+127.0.0.1       // 이라인은 손대지 않는다.
+192.168.56.32   node2.myhadoop.com      node2   localhost.localdomain localhost
+
+# hadoop cluster nodes
+192.168.56.31   node1.myhadoop.com      node1   namenode
+192.168.56.32   node2.myhadoop.com      node2   snamenode
+192.168.56.33   node3.myhadoop.com      node3   datanode3
+
+[root@edydr1p0 ~]# system-config-network
+Edit Devices -> eth1 (eth1) -> Static IP 를 192.168.56.32로 변경 -> Ok -> Save -> Save&Quit
+
+  - 리부트
+[root@edydr1p0 ~]# reboot
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+At Node3
+# 서버용 가상머신 설정/재구성
+- PuTTY 로 Hadoop_Node3 머신에 원격 접속
+- 주소는 192.168.56.33
+[hadoop@edydr1p0 ~]$ su -
+Password:
+[root@edydr1p0 ~]# hostname
+node3.myhadoop.com 
+
+[root@edydr1p0 ~]# vi /etc/sysconfig/network
+HOSTNAME=node3.myhadoop.com
+
+[root@edydr1p0 ~]# vi /etc/hosts
+노드1의 /etc/hosts 파일을 보고 카피한다.
+이때 2번째 줄의 IP 주소는 31 -> 33로 바꾼다.
+
+# Do not remove the following line, or various programs
+# that require network functionality will fail.
+127.0.0.1       // 이라인은 손대지 않는다.
+192.168.56.33   node3.myhadoop.com      node3   localhost.localdomain localhost
+
+# hadoop cluster nodes
+192.168.56.31   node1.myhadoop.com      node1   namenode
+192.168.56.32   node2.myhadoop.com      node2   snamenode
+192.168.56.33   node3.myhadoop.com      node3   datanode3
+
+[root@edydr1p0 ~]# system-config-network
+Edit Devices -> eth1 (eth1) -> Static IP 를 192.168.56.33로 변경 -> Ok -> Save -> Save&Quit
+
+  - 리부트
+[root@edydr1p0 ~]# reboot
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+

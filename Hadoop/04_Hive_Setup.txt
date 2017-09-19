@@ -1,0 +1,39 @@
+++++++++++++++++++++++++++++
+<< Install Hive >>
+  1. Login as operator
+bash-3.2$ su - hadoop
+Password: 
+[hadoop@EDYDR15P0 ~]$ 
+  2. Extract Hive archive file
+[hadoop@EDYDR15P0 ~]$ tar xzf ~/project/hive-0.10.0.tar.gz
+[hadoop@EDYDR15P0 ~]$ ls hive-0.10.0/
+bin   docs      lib      NOTICE      RELEASE_NOTES.txt  src
+conf  examples  LICENSE  README.txt  scripts
+  3. Create a symbolic link to directory where Hive has been installed
+[hadoop@EDYDR15P0 ~]$ ln -s hive-0.10.0 hive
+[hadoop@EDYDR15P0 ~]$ ls -l
+lrwxrwxrwx  1 hadoop hadoop       11 Sep 12 11:07 hive -> hive-0.10.0
+drwxrwxr-x  9 hadoop hadoop     4096 Sep 12 11:04 hive-0.10.0
+[hadoop@EDYDR15P0 ~]$ 
+  4. Set environmental variable 
+[hadoop@EDYDR15P0 ~]$ vi ~/.bash_profile
+# for Hive
+export HIVE_INSTALL=/home/hadoop/hive
+export PATH=$PATH:$HIVE_INSTALL/bin
+[hadoop@EDYDR15P0 ~]$ . ~/.bash_profile
+[hadoop@EDYDR15P0 ~]$ cp ~/hive/conf/hive-env.sh.template ~/hive/conf/hive-env.sh
+[hadoop@EDYDR15P0 ~]$ vi ~/hive/conf/hive-env.sh
+HADOOP_HOME=/home/hadoop/hadoop
+  5. Make a HDFS directory for Hive upload operation
+[hadoop@EDYDR15P0 ~]$ hadoop fs -mkdir /tmp
+mkdir: cannot create directory /tmp: File exists   (==> That's OK!)
+[hadoop@EDYDR15P0 ~]$ hadoop fs -mkdir /user/hive/warehouse
+[hadoop@EDYDR15P0 ~]$ hadoop fs -chmod g+w /tmp
+[hadoop@EDYDR15P0 ~]$ hadoop fs -chmod g+w /user/hive/warehouse
+  6. Start Hive
+[hadoop@EDYDR15P0 ~]$ hive
+WARNING: org.apache.hadoop.metrics.jvm.EventCounter is deprecated. Please use org.apache.hadoop.log.metrics.EventCounter in all the log4j.properties files.
+Logging initialized using configuration in jar:file:/home/hadoop/hive-0.10.0/lib/hive-common-0.10.0.jar!/hive-log4j.properties
+Hive history file=/tmp/hadoop/hive_job_log_hadoop_201309121137_632374572.txt
+hive> 
+

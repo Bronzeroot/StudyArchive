@@ -1,0 +1,172 @@
++++++++++++++++++++++++++++++++++
++ 분석용 데이터 준비 == Air
++++++++++++++++++++++++++++++++++
+ - ASA (American Standards Association)의 미국 항공편 운항 통계 데이터
+ - http://stat-computing.org/dataexpo/2009/the-data.html 
+ - 2008.csv.bz2 압축을 풀고 WinSCP 등을 사용하여 Hadoop 머신에 전송
+[hadoop@node1 ~]$ sed  -e '1d'  2008.csv > 2008_new.csv
+[hadoop@node1 ~]$ /bin/cp  -f   2008_new.csv  2008.csv
+
+[hadoop@edydr1p0 ~]$ hadoop fs -mkdir          Air
+[hadoop@edydr1p0 ~]$ hadoop fs -put  2008.csv  Air
+[hadoop@edydr1p0 ~]$ hadoop fs -ls             Air
+[hadoop@edydr1p0 ~]$ hadoop fs  -cat    Air/2008.csv
+
+ - 항공 운항 데이터의 Column 정보( Variable descriptions )
+Name	Description
+1	Year	1987-2008
+2	Month	1-12
+3	DayofMonth	1-31
+4	DayOfWeek	1 (Monday) - 7 (Sunday)
+5	DepTime	actual departure time (local, hhmm)
+6	CRSDepTime	scheduled departure time (local, hhmm)
+7	ArrTime	actual arrival time (local, hhmm)
+8	CRSArrTime	scheduled arrival time (local, hhmm)
+9	UniqueCarrier	unique carrier code
+10	FlightNum	flight number
+11	TailNum	plane tail number
+12	ActualElapsedTime	in minutes
+13	CRSElapsedTime	in minutes
+14	AirTime	in minutes
+15	ArrDelay	arrival delay, in minutes
+16	DepDelay	departure delay, in minutes
+17	Origin	origin IATA airport code
+18	Dest	destination IATA airport code
+19	Distance	in miles
+20	TaxiIn	taxi in time, in minutes
+21	TaxiOut	taxi out time in minutes
+22	Cancelled	was the flight cancelled?
+23	CancellationCode	reason for cancellation (A = carrier, B = weather, C = NAS, D = security)
+24	Diverted	1 = yes, 0 = no
+25	CarrierDelay	in minutes
+26	WeatherDelay	in minutes
+27	NASDelay	in minutes
+28	SecurityDelay	in minutes
+29	LateAircraftDelay	in minutes
+
+
++ (1) 항공 출발 지연 데이터 분석
+ - 입출력 데이터 타입 정리
+		입/출력구분		키			값
+	매퍼	입력		오프셋(라인번호)	항공운항데이터
+		출력		운항연도,운항월		출발지연데이터 1건
+	리듀서	입력		운항연도,운항월		출발지연데이터 1건의 배열
+		출력		운항연도,운항월		출발지연건수의 총합
+
+ - 매퍼 클래스 파일    : DepartureDelayCountMapper.java
+ - 리듀서 클래스 파일  : DelayCountReducer.java
+ - 드라이버 클래스 파일: DepartureDelayCount.java
+ - 강사 PC에서 업로드  : hadoop-beginner-examples-1.0.jar
+ - 도착지연건수 분석 실행
+ [hadoop@node1 ~]$ hadoop jar hadoop-beginner-examples-1.0.jar 
+                   wikibooks.hadoop.chapter05.DepartureDelayCount 
+                   Air  air_output_delay_count
+
+ [hadoop@node1 ~]$ hadoop fs -ls          air_output_delay_count
+ [hadoop@node1 ~]$ hadoop fs -copyToLocal air_output_delay_count/part-r-00000  
+                                          air_delay_count.txt
+ [hadoop@node1 ~]$ cat air_delay_count.txt
+ 2008,1  247948
+ 2008,10 162531
+ 2008,11 157278
+ 2008,12 263949
+ 2008,2  252765
+ 2008,3  271969
+ 2008,4  220864
+ 2008,5  220614
+ 2008,6  271014
+ 2008,7  253632
+ 2008,8  231349
+ 2008,9  147061
+
++ (2) 항공 도착 지연 데이터 분석
+ - 입출력 데이터 타입 정리
+		입/출력구분		키			값
+	매퍼	입력		오프셋(라인번호)	항공운항데이터
+		출력		운항연도,운항월		도착지연데이터 1건
+	리듀서	입력		운항연도,운항월		도착지연데이터 1건의 배열
+		출력		운항연도,운항월		도착지연건수의 총합
+ - 매퍼 클래스 파일    : ArrivalDelayCountMapper.java
+ - 리듀서 클래스 파일  : DelayCountReducer.java
+ - 드라이버 클래스 파일: ArrivalDelayCount.java
+ - 도착지연건수 분석 실행
+ [hadoop@edydr1p0 ~]$ hadoop fs -rmr air_output_delay_count
+ [hadoop@edydr1p0 ~]$ hadoop jar hadoop-beginner-examples-1.0.jar wikibooks.hadoop.chapter05.ArrivalDelayCount Air air_output_delay_count
+ - 결과 확인
+ [hadoop@edydr1p0 ~]$ hadoop fs -ls air_output_delay_count
+ [hadoop@edydr1p0 ~]$ hadoop fs -cat air_output_delay_count/part-r-00000
+ 2008,1  279427
+ 2008,10 183582
+ 2008,11 181506
+ 2008,12 280493
+ 2008,2  278902
+ 2008,3  294556
+ 2008,4  256142
+ 2008,5  254673
+ 2008,6  295897
+ 2008,7  264630
+ 2008,8  239737
+ 2008,9  169959
+
+
++ (3) 카운터 사용
+  * 내장카운터 vs. 사용자 정의 카운터
+  * 그룹별로 관리
+  * 용도: 맵, 리듀스 동작 모니터링
+  * 사용자 정의 카운터
+    - 자바의 enum 클래스를 이용하여 구현
+    - enum 클래스의 이름 --> 카운터 그룹
+      enum 클래스의 필드 --> 카운터 이름
+  * 우리가 구현할 카운터 구조
+    - 카운터 그룹: DelayCounters
+    - 카운터 이름:
+      . not_available_departure : 출발지연시간이 NA인 경우
+      . scheduled_departure     : 정시에 출발한 경우
+      . early_departure         : 예정보다 일찍 출발한 경우
+      . not_available_arrival   : 도착지연시간이 NA인 경우
+      . scheduled_arrival       : 정시에 도착한 경우
+      . early_arrival           : 예정보다 일찍 도착한 경우
+  * 카운터용 클래스 파일: DelayCounters.java
+    드라이버 클래스 파일: DelayCountWithCounter.java
+    매퍼 클래스 파일    : DelayCountMapperWithCounter.java
+    리듀서 클래스 파일  : DelayCountReducer.java
+  * 하둡 프로그램 실행시 하둡 옵션 처리를 위해 드라이버 클래스에
+    GenericOptionsParser 클래스를 사용하였습니다.
+    Mapper 클래스에서 -D 옵션으로 받은 workType의 값에 따라
+    출발지연 또는 도착지연 처리를 하도록 구현하였습니다.
+    이로 인해 하나의 하둡 프로그램으로 두 가지 작업(출발지연, 도착지연)을
+    처리할 수 있게 되었습니다.
+  * 실행: 도착지연처리를 위해 -D workType=departure 라는 옵션을 주었습니다.
+ [hadoop@edydr1p0 ~]$ hadoop jar hadoop-beginner-examples-1.0.jar wikibooks.hadoop.chapter05.DelayCountWithCounter -D workType=departure Air air_output_3
+ [hadoop@edydr1p0 ~]$ hadoop fs -cat air_output_3/part-r-00000
+  * 실행2: 출발지연처리를 위해 -D workType=arrival 라는 옵션을 주었습니다.
+ [hadoop@edydr1p0 ~]$ hadoop jar hadoop-beginner-examples-1.0.jar wikibooks.hadoop.chapter05.DelayCountWithCounter -D workType=arrival Air air_output_3
+
++ (4) 다수의 파일 동시 출력
+  * GenericOptionsParser 클래스를 사용하면 하나의 프로그램으로 여러 작업을 처리할
+    수 있는 장점이 있지만 병렬처리가 되지 않는 단점
+    즉, 출발지연과 도착지연 두 가지 처리작업을 한다고 가정했을 때
+    3]에서 개발한 DelayCountWithCounter 프로그램을 두 번 실행해야 합니다.
+  * MulitpleOutputs 클래스를 사용하면 출력 파일을 여러개 지정할 수 있습니다.
+    한 번의 맵리듀스로 여러 결과를 동시에 얻을 수 있음.
+  * MultipleOutputs 사용
+    - 드라이버 클래스에서 
+	MultipleOutputs 출력파일 경로 및 이름, 출력 포맷, 출력 키와 값 타입을 지정
+    - 매퍼 클래스에서
+	리듀서에서 구분하도록 매퍼 출력에 추가적인 정보(태그) 추가하여 출력
+    - 리듀서 클래스에서
+	setup()  : MultipleOutputs 클래스의 객체를 생성
+	reduce() : 매퍼 출력의 태그를 확인하여 MultipleOutputs 객체를 통해 출력
+	cleanup(): setup()에서 생성한 MultipleOutputs 객체를 닫음
+  * 매퍼 클래스 파일    : DelayCountMapperWithMultipleOutputs.java
+  * 리듀서 클래스 파일  : DelayCountReducerWithMultipleOutputs.java
+  * 드라이버 클래스 파일: DelayCountWithMultipleOutputs.java
+  * 동시 출력실행
+ [hadoop@edydr1p0 ~]$ hadoop jar hadoop-beginner-examples-1.0.jar wikibooks.hadoop.chapter05.DelayCountWithMultipleOutputs Air air_output_4
+  --> 결과: reduce 출력 레코드 개수가 0
+  --> 이유: part-r-00000 파일로 출력이 없었기 때문
+ [hadoop@edydr1p0 ~]$ hadoop fs -ls air_output_4
+  --> 출력파일이 arrival-r-00000과 departure-r-00000 두 개의 파일로 동시 생성
+  --> part-r-00000 파일 크기가 0인 것 참고
+ [hadoop@edydr1p0 ~]$ hadoop fs -cat air_output_4/arrival-r-00000
+ [hadoop@edydr1p0 ~]$ hadoop fs -cat air_output_4/departure-r-00000
